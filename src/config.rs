@@ -1,9 +1,7 @@
-use std::{
-    fs::{self},
-    path::PathBuf,
-};
+use std::{fs, path::PathBuf};
 
 use expanduser::expanduser;
+use eyre::Context;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -14,23 +12,22 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            path: expanduser("~/ttrack").unwrap(),
+            path: expanduser("~/.local/state/ttrack").unwrap(),
         }
     }
 }
 
 impl Config {
-    pub fn load() -> Self {
-        let Ok(content) = fs::read_to_string("~/ttrack.json") else {
-            return Default::default();
-        };
-        match serde_json::from_str(content.as_str()) {
-            Ok(config) => return config,
-            Err(error) => {
-                eprintln!("ERROR could not parse config ttrack.json");
-                panic!("{}", error);
-            }
-        };
+    pub fn load() -> eyre::Result<Self> {
+        let config = fs::read_to_string("~/.ttrack.json")
+            .map(|content| {
+                serde_json::from_str(content.as_str())
+                    .wrap_err("ERROR \"could not parse the '~/.ttrack.json' config!\"")
+                    .with_context(|| content)
+            })
+            .unwrap_or(Ok(Self::default()))?;
+        fs::create_dir_all(&config.path)?;
+        Ok(config)
     }
 
     pub fn database_path(&self) -> PathBuf {

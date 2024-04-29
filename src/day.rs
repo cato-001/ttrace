@@ -2,27 +2,13 @@ use std::rc::Rc;
 
 use chrono::{Local, NaiveDate};
 use eyre::Context;
-use rusqlite::{Connection, Params, Row};
+use rusqlite::{Connection, Params};
 
-#[derive(Debug)]
-pub struct Day {
-    id: u64,
-    date: NaiveDate,
-}
+pub use dto::Day;
 
-impl Day {
-    pub fn id(&self) -> u64 {
-        self.id
-    }
-}
+use self::dto::day_from_row;
 
-impl Day {
-    fn from_row(row: &Row) -> rusqlite::Result<Self> {
-        let id = row.get("id")?;
-        let date = row.get("date")?;
-        Ok(Day { id, date })
-    }
-}
+mod dto;
 
 pub struct DayRepository {
     connection: Rc<Connection>,
@@ -46,7 +32,7 @@ impl DayRepository {
             return Ok(today);
         };
         self.insert_from_date(&now)?;
-        return self.get_from_date(&now);
+        self.get_from_date(&now)
     }
 
     pub fn list_passed_days(&self, count: usize) -> eyre::Result<Vec<Day>> {
@@ -69,7 +55,7 @@ impl DayRepository {
 
     fn get(&self, statement: &str, parameters: impl Params) -> eyre::Result<Day> {
         self.connection
-            .query_row(statement, parameters, Day::from_row)
+            .query_row(statement, parameters, day_from_row)
             .wrap_err("could not query day")
             .with_context(|| statement.to_owned())
     }
@@ -77,7 +63,7 @@ impl DayRepository {
     fn query(&self, query: &str, parameters: impl Params) -> eyre::Result<Vec<Day>> {
         self.connection
             .prepare(query)?
-            .query_map(parameters, Day::from_row)
+            .query_map(parameters, day_from_row)
             .wrap_err("could not execute sql statement")
             .with_context(|| query.to_owned())?
             .into_iter()

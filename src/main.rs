@@ -1,7 +1,10 @@
+#![allow(unused)]
+
 use clap::{Arg, ArgAction, Command};
 use config::Config;
 use database::open_database_connection;
 use day::DayRepository;
+use output::{output_day_with_tasks, output_task};
 
 use crate::task::TaskRepository;
 
@@ -9,6 +12,7 @@ mod commands;
 mod config;
 mod database;
 mod day;
+mod output;
 mod task;
 
 fn main() -> eyre::Result<()> {
@@ -70,7 +74,7 @@ fn main() -> eyre::Result<()> {
         .subcommand_required(true)
         .get_matches();
 
-    let config = Config::load();
+    let config = Config::load()?;
     let connection = open_database_connection(&config)?;
 
     let day_repository = DayRepository::new(connection.clone())?;
@@ -81,23 +85,19 @@ fn main() -> eyre::Result<()> {
             let description: &String = command.get_one("description").unwrap();
             let today = day_repository.today()?;
             let task = task_repository.start(&today, description.as_str())?;
-            println!("{}", task);
+            output_task(&task);
         }
         ("stop", _) => {
             let today = day_repository.today()?;
             let task_id = task_repository.stop(&today)?;
             let task = task_repository.task(task_id)?;
-            println!("{}", task)
+            output_task(&task);
         }
         ("list", command) => {
             if let Some(date) = command.get_one("date") {
                 let day = day_repository.get_from_date(&date)?;
-                let tasks = task_repository.tasks_for_day(&day)?;
-
-                for task in tasks {
-                    println!("{}", task)
-                }
-
+                let tasks_for_day = task_repository.day_with_tasks(day)?;
+                output_day_with_tasks(tasks_for_day);
                 return Ok(());
             }
             if let Some(true) = command.get_one("week") {
@@ -105,12 +105,8 @@ fn main() -> eyre::Result<()> {
             }
             if let Some(true) = command.get_one("today") {
                 let today = day_repository.today()?;
-                let tasks = task_repository.tasks_for_day(&today)?;
-
-                for task in tasks {
-                    println!("{}", task)
-                }
-
+                let tasks_for_day = task_repository.day_with_tasks(today)?;
+                output_day_with_tasks(tasks_for_day);
                 return Ok(());
             }
         }
