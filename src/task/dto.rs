@@ -1,6 +1,6 @@
 pub use {
     day_with_tasks::DayWithTasks,
-    task::{set_task_end, task_from_row, Task},
+    task::{set_task_day, task_from_row, Task},
     task_group::TaskGroup,
 };
 
@@ -10,34 +10,31 @@ mod task {
     use chrono::{Local, NaiveTime, TimeDelta};
     use rusqlite::Row;
 
+    use crate::day::{Day, DayReference};
+
     pub fn task_from_row(row: &Row) -> rusqlite::Result<Task> {
         let id = row.get("id")?;
-        let day_id = row.get("day_id")?;
+        let day = row.get("day_id")?;
         let start = row.get("start")?;
         let end = row.get("end")?;
         let description = row.get("description")?;
         Ok(Task {
             id,
-            day_id,
+            day,
             start,
             end,
             description,
         })
     }
 
-    pub fn set_task_end(task: &mut Task, is_today: bool) {
-        let end = task.end.unwrap_or(
-            is_today
-                .then(|| Local::now().time())
-                .unwrap_or(NaiveTime::from_hms_opt(23, 59, 59).unwrap()),
-        );
-        task.end = Some(end);
+    pub fn set_task_day(task: &mut Task, day: Day) {
+        task.day = DayReference::Value(day);
     }
 
     #[derive(Debug, Clone)]
     pub struct Task {
         id: u64,
-        day_id: u64,
+        day: DayReference,
         start: NaiveTime,
         end: Option<NaiveTime>,
         description: String,
@@ -61,7 +58,9 @@ mod task {
         }
 
         pub fn delta(&self) -> Option<TimeDelta> {
-            self.end.map(|end| end - self.start)
+            self.end
+                .or_else(|| Some(self.day.value()?.time()))
+                .map(|end| end - self.start)
         }
     }
 

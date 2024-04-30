@@ -8,7 +8,7 @@ pub use dto::{DayWithTasks, Task, TaskGroup};
 
 use crate::day::Day;
 
-use self::dto::{set_task_end, task_from_row};
+use self::dto::{set_task_day, task_from_row};
 
 mod dto;
 
@@ -25,7 +25,7 @@ impl TaskRepository {
             )
             .with_context(|| format!("cannot query tasks for day: {:?}", day))?;
         for task in tasks.iter_mut() {
-            set_task_end(task, day.is_today());
+            set_task_day(task, day.clone());
         }
         Ok(DayWithTasks::new(day, tasks))
     }
@@ -72,7 +72,7 @@ impl TaskRepository {
              WHERE day_id=?1 AND end IS null",
             (day.id(),),
         )?;
-        set_task_end(&mut task, day.is_today());
+        set_task_day(&mut task, day.clone());
         Ok(task)
     }
 

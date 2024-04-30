@@ -4,7 +4,7 @@ use chrono::{Local, NaiveDate};
 use eyre::Context;
 use rusqlite::{Connection, Params};
 
-pub use dto::Day;
+pub use dto::{Day, DayReference};
 
 use self::dto::day_from_row;
 
@@ -46,13 +46,26 @@ impl DayRepository {
         self.get("SELECT id, date FROM days WHERE date = ?1", (date,))
     }
 
+    pub fn resolve(&self, reference: DayReference) -> eyre::Result<Day> {
+        match reference {
+            DayReference::Id(id) => self.day(id),
+            DayReference::Value(day) => Ok(day),
+        }
+    }
+
+    pub fn day(&self, id: u64) -> eyre::Result<Day> {
+        self.get("SELECT id, date FROM days WHERE id = ?1", (id,))
+    }
+
     fn insert_from_date(&self, date: &NaiveDate) -> eyre::Result<()> {
         let _ = self
             .connection
             .execute("INSERT INTO days (date) VALUES (?1)", (date,))?;
         Ok(())
     }
+}
 
+impl DayRepository {
     fn get(&self, statement: &str, parameters: impl Params) -> eyre::Result<Day> {
         self.connection
             .query_row(statement, parameters, day_from_row)
