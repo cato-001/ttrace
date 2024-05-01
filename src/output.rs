@@ -1,10 +1,9 @@
 use std::io::{stdout, IsTerminal};
 
+use colored::Colorize;
+
 use crate::{
-    output::{
-        interactive::{interactive_error_day_not_found, interactive_output_task_group},
-        unstyled::unstyled_day_with_tasks,
-    },
+    output::{interactive::interactive_output_task_group, unstyled::unstyled_day_with_tasks},
     task::{DayWithTasks, Task},
 };
 
@@ -60,6 +59,17 @@ pub fn error_day_not_found() {
     }
 
     println!();
-    interactive_error_day_not_found();
+    println!("{} could not find day", "Error".red().bold());
+    println!();
+}
+
+pub fn error_no_task_started() {
+    if !out_interactive() {
+        eprintln!("ERROR \"no tasks are started\"");
+        return;
+    }
+
+    println!();
+    println!("{} no tasks are started", "Error".red().bold());
     println!();
 }

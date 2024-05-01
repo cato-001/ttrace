@@ -60,7 +60,3 @@ fn output_task_body(task: &Task) {
         )
     })
 }
-
-pub fn interactive_error_day_not_found() {
-    println!("{} could not find day", "Error".red().bold());
-}

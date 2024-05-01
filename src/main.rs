@@ -5,7 +5,9 @@ use clap::{Arg, ArgAction, Command};
 use config::Config;
 use database::open_database_connection;
 use day::DayRepository;
-use output::{error_day_not_found, output_day_with_tasks, output_task, output_week};
+use output::{
+    error_day_not_found, error_no_task_started, output_day_with_tasks, output_task, output_week,
+};
 
 use crate::task::TaskRepository;
 
@@ -70,7 +72,10 @@ fn main() -> eyre::Result<()> {
         }
         ("stop", _) => {
             let today = day_repository.today()?;
-            let task_id = task_repository.stop(&today)?;
+            let Ok(task_id) = task_repository.stop(&today) else {
+                error_no_task_started();
+                return Ok(());
+            };
             let task = task_repository.task(task_id)?;
             output_task(&task);
         }
