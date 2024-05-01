@@ -57,6 +57,10 @@ mod task {
             self.end
         }
 
+        pub fn is_active(&self) -> bool {
+            self.end.is_none()
+        }
+
         pub fn delta(&self) -> Option<TimeDelta> {
             self.end
                 .or_else(|| Some(self.day.value()?.time()))

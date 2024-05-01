@@ -1,3 +1,4 @@
+use colored::Colorize;
 use term_painter::{Color, ToStyle};
 
 use crate::{
@@ -11,16 +12,16 @@ mod delta_fmt;
 mod time_fmt;
 
 pub fn interactive_output_day(day: &Day) {
-    println!("{} {}", Color::Green.paint("Day"), DateFmt::new(day.date()));
+    println!("{} {}", "Day".green().bold(), DateFmt::new(day.date()));
 }
 
 pub fn interactive_output_task(task: &Task) {
-    println!("{} {}", Color::Blue.paint("Task"), task.description());
+    println!("{} {}", "Task".blue().bold(), task.description());
     output_task_body(task);
 }
 
 pub fn interactive_output_task_group(group: &TaskGroup) {
-    print!("{} {} ", Color::Blue.paint("Task"), group.description(),);
+    print!("{} {} ", "Task".blue().bold(), group.description(),);
     Color::White.with(|| println!("({})", DeltaFmt::new(group.delta())));
 
     for task in group.tasks() {
@@ -29,11 +30,12 @@ pub fn interactive_output_task_group(group: &TaskGroup) {
 }
 
 fn output_task_body(task: &Task) {
-    print!(
-        " {} {} ",
-        Color::Magenta.paint("->"),
-        DeltaFmt::option(task.delta())
-    );
+    let arrow = if task.is_active() {
+        "->".bright_green().bold()
+    } else {
+        "->".magenta()
+    };
+    print!(" {} {} ", arrow, DeltaFmt::option(task.delta()));
     Color::BrightBlack.with(|| {
         println!(
             "({} - {})",
