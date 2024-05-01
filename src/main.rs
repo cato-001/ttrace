@@ -1,10 +1,11 @@
 #![allow(unused)]
 
+use chrono::{Days, Local};
 use clap::{Arg, ArgAction, Command};
 use config::Config;
 use database::open_database_connection;
 use day::DayRepository;
-use output::{output_day_with_tasks, output_task};
+use output::{error_day_not_found, output_day_with_tasks, output_task, output_week};
 
 use crate::task::TaskRepository;
 
@@ -21,8 +22,7 @@ fn main() -> eyre::Result<()> {
             Command::new("start")
                 .args([
                     Arg::new("description")
-                        .long("description")
-                        .short('d')
+                        .num_args(1)
                         .required(true)
                         .help("name of the task"),
                     Arg::new("tags")
@@ -47,28 +47,9 @@ fn main() -> eyre::Result<()> {
                 ])
                 .about("edit the currently running task"),
             Command::new("get").about("get the currently running task"),
-            Command::new("list")
-                .args([
-                    Arg::new("date")
-                        .long("date")
-                        .short('d')
-                        .conflicts_with_all(["today", "week"])
-                        .help("the date of the day to list the times of"),
-                    Arg::new("today")
-                        .long("today")
-                        .short('t')
-                        .action(ArgAction::SetTrue)
-                        .default_value("true")
-                        .conflicts_with_all(["date", "week"])
-                        .help("list todays tasks"),
-                    Arg::new("week")
-                        .long("week")
-                        .short('w')
-                        .action(ArgAction::SetTrue)
-                        .conflicts_with_all(["date", "today"])
-                        .help("list the tasks from the current week"),
-                ])
-                .about("list the tracked times"),
+            Command::new("today").about("list the tasks of today"),
+            Command::new("yesterday").about("list the task of yesterday"),
+            Command::new("week").about("list the task of this week"),
         ])
         .about("track the time you spend on projects or other tasks")
         .subcommand_required(true)
@@ -93,22 +74,28 @@ fn main() -> eyre::Result<()> {
             let task = task_repository.task(task_id)?;
             output_task(&task);
         }
-        ("list", command) => {
-            if let Some(date) = command.get_one("date") {
-                let day = day_repository.get_from_date(&date)?;
-                let tasks_for_day = task_repository.day_with_tasks(day)?;
-                output_day_with_tasks(tasks_for_day);
+        ("today", _) => {
+            let Ok(today) = day_repository.today() else {
+                error_day_not_found();
                 return Ok(());
-            }
-            if let Some(true) = command.get_one("week") {
+            };
+            let tasks_for_day = task_repository.day_with_tasks(today)?;
+            output_day_with_tasks(tasks_for_day);
+        }
+        ("yesterday", _) => {
+            let Ok(yesterday) = day_repository.yesterday() else {
+                error_day_not_found();
                 return Ok(());
-            }
-            if let Some(true) = command.get_one("today") {
-                let today = day_repository.today()?;
-                let tasks_for_day = task_repository.day_with_tasks(today)?;
-                output_day_with_tasks(tasks_for_day);
-                return Ok(());
-            }
+            };
+            let tasks_for_day = task_repository.day_with_tasks(yesterday)?;
+            output_day_with_tasks(tasks_for_day);
+        }
+        ("week", _) => {
+            let week = day_repository.week_till_today()?;
+            let week = week
+                .into_iter()
+                .filter_map(|day| task_repository.day_with_tasks(day).ok());
+            output_week(week);
         }
         (command, _) => {
             eprintln!("ERROR \"the command {} is not implemented.\"", command)

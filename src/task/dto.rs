@@ -100,6 +100,10 @@ mod day_with_tasks {
             Self { day, tasks }
         }
 
+        pub fn is_empty(&self) -> bool {
+            self.tasks.is_empty()
+        }
+
         pub fn day(&self) -> &Day {
             &self.day
         }

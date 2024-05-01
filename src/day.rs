@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
-use chrono::{Local, NaiveDate};
-use eyre::Context;
+use chrono::{Datelike, Days, Local, NaiveDate, Weekday};
+use eyre::{Context, ContextCompat};
 use rusqlite::{Connection, Params};
 
 pub use dto::{Day, DayReference};
@@ -27,12 +27,36 @@ impl DayRepository {
     }
 
     pub fn today(&self) -> eyre::Result<Day> {
-        let now = Local::now().date_naive();
-        if let Ok(today) = self.get_from_date(&now) {
-            return Ok(today);
-        };
-        self.insert_from_date(&now)?;
-        self.get_from_date(&now)
+        let date = Local::now().date_naive();
+        self.from_date(&date)
+    }
+
+    pub fn yesterday(&self) -> eyre::Result<Day> {
+        let date = Local::now()
+            .date_naive()
+            .checked_sub_days(Days::new(1))
+            .wrap_err("could not get yesterdays date!")?;
+        self.from_date(&date)
+    }
+
+    pub fn week_till_today(&self) -> eyre::Result<Vec<Day>> {
+        const ONE_DAY: Days = Days::new(1);
+        let mut date = Local::now().date_naive();
+        let mut week = Vec::new();
+
+        loop {
+            week.push(self.from_date(&date)?);
+
+            if matches!(date.weekday(), Weekday::Mon) {
+                break;
+            }
+            let Some(next) = date.checked_sub_days(ONE_DAY) else {
+                break;
+            };
+            date = next
+        }
+
+        Ok(week)
     }
 
     pub fn list_passed_days(&self, count: usize) -> eyre::Result<Vec<Day>> {
@@ -42,7 +66,15 @@ impl DayRepository {
         )
     }
 
-    pub fn get_from_date(&self, date: &NaiveDate) -> eyre::Result<Day> {
+    pub fn from_date(&self, date: &NaiveDate) -> eyre::Result<Day> {
+        if let Ok(day) = self.from_date_or_none(&date) {
+            return Ok(day);
+        }
+        self.insert_from_date(&date);
+        self.from_date_or_none(&date)
+    }
+
+    fn from_date_or_none(&self, date: &NaiveDate) -> eyre::Result<Day> {
         self.get("SELECT id, date FROM days WHERE date = ?1", (date,))
     }
 
