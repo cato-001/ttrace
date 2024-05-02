@@ -86,6 +86,8 @@ mod task {
 }
 
 mod day_with_tasks {
+    use chrono::TimeDelta;
+
     use crate::day::Day;
 
     use super::{task_group::TaskGroup, Task};
@@ -102,6 +104,10 @@ mod day_with_tasks {
 
         pub fn is_empty(&self) -> bool {
             self.tasks.is_empty()
+        }
+
+        pub fn delta(&self) -> TimeDelta {
+            self.tasks.iter().filter_map(|task| task.delta()).sum()
         }
 
         pub fn day(&self) -> &Day {

@@ -13,9 +13,10 @@ mod time_fmt;
 
 pub fn interactive_day_with_tasks(day_with_tasks: &DayWithTasks) {
     println!(
-        "{} {}",
+        "{} {} {}",
         "Day".green().bold(),
-        DateFmt::new(day_with_tasks.day().date())
+        DateFmt::new(day_with_tasks.day().date()),
+        format!("({})", DeltaFmt::new(day_with_tasks.delta())).bright_black()
     );
     if day_with_tasks.is_empty() {
         println!(
