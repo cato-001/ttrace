@@ -57,14 +57,16 @@ mod task {
             self.end
         }
 
+        pub fn end_or_time(&self) -> Option<NaiveTime> {
+            self.end.or_else(|| Some(self.day.value()?.time()))
+        }
+
         pub fn is_active(&self) -> bool {
             self.end.is_none()
         }
 
         pub fn delta(&self) -> Option<TimeDelta> {
-            self.end
-                .or_else(|| Some(self.day.value()?.time()))
-                .map(|end| end - self.start)
+            self.end_or_time().map(|end| end - self.start)
         }
     }
 
@@ -87,6 +89,7 @@ mod task {
 
 mod day_with_tasks {
     use chrono::TimeDelta;
+    use itertools::Itertools;
 
     use crate::day::Day;
 
@@ -118,26 +121,25 @@ mod day_with_tasks {
             self.tasks.iter()
         }
 
-        pub fn task_groups(&self) -> impl Iterator<Item = TaskGroup> {
-            let mut groups = Vec::new();
+        pub fn task_groups(&self) -> Vec<TaskGroup> {
+            let mut groups: Vec<_> = self
+                .tasks
+                .iter()
+                .cloned()
+                .into_group_map_by(|task| task.description().to_owned())
+                .into_iter()
+                .map(|(key, value)| TaskGroup::new(key, value))
+                .collect();
 
-            for task in self.tasks.iter() {
-                if groups
-                    .iter_mut()
-                    .any(|group: &mut TaskGroup| group.add_task(task.clone()))
-                {
-                    continue;
-                }
-                groups.push(TaskGroup::from_task(task.clone()));
-            }
+            groups.sort_by_key(|group| group.latest_time());
 
-            groups.into_iter()
+            groups
         }
     }
 }
 
 mod task_group {
-    use chrono::TimeDelta;
+    use chrono::{NaiveTime, TimeDelta};
 
     use super::Task;
 
@@ -147,6 +149,10 @@ mod task_group {
     }
 
     impl TaskGroup {
+        pub fn new(description: String, tasks: Vec<Task>) -> Self {
+            Self { description, tasks }
+        }
+
         pub fn from_task(task: Task) -> Self {
             let description = task.description().to_owned();
             let tasks = vec![task];
@@ -171,6 +177,19 @@ mod task_group {
 
         pub fn delta(&self) -> TimeDelta {
             self.tasks.iter().filter_map(|task| task.delta()).sum()
+        }
+
+        pub fn latest_time(&self) -> Option<NaiveTime> {
+            self.tasks.iter().fold(None, |latest_time, task| {
+                match (latest_time, task.end_or_time()) {
+                    (Some(latest_time), Some(task_end)) => (task_end > latest_time)
+                        .then_some(task_end)
+                        .or(Some(latest_time)),
+                    (None, Some(task_end)) => Some(task_end),
+                    (Some(latest_time), None) => Some(latest_time),
+                    (None, None) => None,
+                }
+            })
         }
     }
 }
