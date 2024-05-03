@@ -17,7 +17,8 @@ mod task {
         let day = row.get("day_id")?;
         let start = row.get("start")?;
         let end = row.get("end")?;
-        let description = row.get("description")?;
+        let description: String = row.get("description")?;
+        let description = description.trim().to_owned();
         Ok(Task {
             id,
             day,
