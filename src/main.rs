@@ -5,11 +5,11 @@ use clap::{Arg, ArgAction, Command};
 use config::Config;
 use database::open_database_connection;
 use day::DayRepository;
-use output::{
-    error_day_not_found, error_no_task_started, output_day_with_tasks, output_task, output_week,
-};
+use termfmt::{TermFmtExt, TermFmtsExt};
 
 use crate::task::TaskRepository;
+
+use self::output::{DataBundle, OutputFmt};
 
 mod commands;
 mod config;
@@ -55,10 +55,13 @@ fn main() -> eyre::Result<()> {
         ])
         .about("track the time you spend on projects or other tasks")
         .subcommand_required(true)
+        .termfmts()
         .get_matches();
 
     let config = Config::load()?;
     let connection = open_database_connection(&config)?;
+
+    let mut term = cli.termfmt(DataBundle::default());
 
     let day_repository = DayRepository::new(connection.clone())?;
     let task_repository = TaskRepository::new(connection)?;
@@ -68,44 +71,51 @@ fn main() -> eyre::Result<()> {
             let description: &String = command.get_one("description").unwrap();
             let today = day_repository.today()?;
             let task = task_repository.start(&today, description.as_str())?;
-            output_task(&task);
+            term.task(task);
         }
         ("stop", _) => {
             let today = day_repository.today()?;
             let Ok(task_id) = task_repository.stop(&today) else {
-                error_no_task_started();
+                term.error("no task is started yet!");
+                term.end();
                 return Ok(());
             };
             let task = task_repository.task(task_id)?;
-            output_task(&task);
+            term.task(task);
         }
         ("today", _) => {
             let Ok(today) = day_repository.today() else {
-                error_day_not_found();
+                term.error("could not find or create day!");
+                term.end();
                 return Ok(());
             };
             let tasks_for_day = task_repository.day_with_tasks(today)?;
-            output_day_with_tasks(tasks_for_day);
+            term.day_with_tasks(tasks_for_day);
         }
         ("yesterday", _) => {
             let Ok(yesterday) = day_repository.yesterday() else {
-                error_day_not_found();
+                term.error("could not find or create day!");
+                term.end();
                 return Ok(());
             };
             let tasks_for_day = task_repository.day_with_tasks(yesterday)?;
-            output_day_with_tasks(tasks_for_day);
+            term.day_with_tasks(tasks_for_day);
         }
         ("week", _) => {
             let week = day_repository.week_till_today()?;
             let week = week
                 .into_iter()
                 .filter_map(|day| task_repository.day_with_tasks(day).ok());
-            output_week(week);
+            for day_with_tasks in week {
+                term.day_with_tasks(day_with_tasks);
+            }
         }
         (command, _) => {
             eprintln!("ERROR \"the command {} is not implemented.\"", command)
         }
     }
 
+    term.flush();
+    term.end();
     Ok(())
 }

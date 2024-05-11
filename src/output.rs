@@ -1,75 +1,134 @@
-use std::io::{stdout, IsTerminal};
-
-use colored::Colorize;
-
-use crate::{
-    output::{interactive::interactive_output_task_group, unstyled::unstyled_day_with_tasks},
-    task::{DayWithTasks, Task},
+use std::{
+    fmt::Display,
+    io::{stdout, IsTerminal},
 };
 
-use self::interactive::{interactive_day_with_tasks, interactive_task};
+use serde::Serialize;
+use termfmt::{
+    chrono::{DateFmt, DeltaFmt, TimeFmt},
+    termarrow, termarrow_fg, termerr, termh1, termh2, termprefix1, termprefix2, BundleFmt, DataFmt,
+    Fg, TermFmt, TermStyle,
+};
 
-mod interactive;
-mod unstyled;
+use crate::{
+    day::Day,
+    task::{DayWithTasks, Task, TaskGroup},
+};
 
-fn out_interactive() -> bool {
-    stdout().is_terminal()
+pub enum OutputData {
+    Error(String),
+    Task(Task),
+    DayWithTask(DayWithTasks),
+    End,
 }
 
-pub fn output_task(task: &Task) {
-    if !out_interactive() {
-        println!("{}", task);
-        return;
+#[derive(Default, Serialize)]
+pub struct DataBundle {
+    #[serde(rename = "output", skip_serializing_if = "Vec::is_empty")]
+    tasks: Vec<Task>,
+    #[serde(rename = "output", skip_serializing_if = "Vec::is_empty")]
+    day_with_tasks: Vec<DayWithTasks>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    info: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    error: Vec<String>,
+}
+
+pub trait OutputFmt {
+    fn error(&mut self, value: impl Display);
+    fn day_with_tasks(&mut self, value: DayWithTasks);
+    fn task(&mut self, task: Task);
+    fn end(&mut self);
+}
+
+impl OutputFmt for TermFmt<OutputData, DataBundle> {
+    fn error(&mut self, value: impl Display) {
+        self.output(OutputData::Error(format!("{}", value)));
     }
 
-    println!();
-    interactive_task(task);
-    println!();
-}
-
-pub fn output_day_with_tasks(day_with_tasks: DayWithTasks) {
-    let day = day_with_tasks.day();
-    if !out_interactive() {
-        unstyled_day_with_tasks(&day_with_tasks);
-        return;
+    fn day_with_tasks(&mut self, value: DayWithTasks) {
+        self.output(OutputData::DayWithTask(value));
     }
 
-    println!();
-    interactive_day_with_tasks(&day_with_tasks);
+    fn task(&mut self, value: Task) {
+        self.output(OutputData::Task(value));
+    }
+
+    fn end(&mut self) {
+        self.output(OutputData::End);
+    }
 }
 
-pub fn output_week(week: impl Iterator<Item = DayWithTasks>) {
-    if !out_interactive() {
-        for day_with_tasks in week {
-            unstyled_day_with_tasks(&day_with_tasks);
+impl DataFmt for OutputData {
+    fn plain(self) {
+        match self {
+            Self::Error(value) => eprintln!("{}", value),
+            Self::Task(value) => println!("{}", value),
+            Self::DayWithTask(value) => {
+                println!("{}", value.day());
+                for task in value.tasks() {
+                    println!("{}", task);
+                }
+            }
+            Self::End => {}
         }
-        return;
     }
 
-    println!("");
-    for day_with_tasks in week {
-        interactive_day_with_tasks(&day_with_tasks);
+    fn interactive(self) {
+        match self {
+            Self::Error(value) => termerr(value),
+            Self::Task(value) => {
+                termprefix2("Task", value.description());
+                term_task_body(&value);
+            }
+            Self::DayWithTask(value) => {
+                termprefix1("Day", DateFmt::new(value.day().date()));
+                if value.is_empty() {
+                    termarrow("no tasks recorded!".fg_bright_black());
+                }
+                for group in value.task_groups() {
+                    termprefix2("Task", group.description());
+                    for task in group.tasks() {
+                        term_task_body(task);
+                    }
+                }
+            }
+            Self::End => println!(),
+        }
     }
 }
 
-pub fn error_day_not_found() {
-    if !out_interactive() {
-        eprintln!("ERROR \"day could not be found\"");
-        return;
+impl BundleFmt for DataBundle {
+    type Data = OutputData;
+
+    fn push(&mut self, value: Self::Data) {
+        match value {
+            OutputData::Error(value) => self.error.push(value),
+            OutputData::Task(value) => self.tasks.push(value),
+            OutputData::DayWithTask(value) => self.day_with_tasks.push(value),
+            OutputData::End => {}
+        }
     }
 
-    println!();
-    println!("{} could not find day", "Error".red().bold());
-    println!();
+    fn clear(&mut self) {
+        self.tasks.clear();
+        self.day_with_tasks.clear();
+    }
 }
 
-pub fn error_no_task_started() {
-    if !out_interactive() {
-        eprintln!("ERROR \"no tasks are started\"");
-        return;
-    }
-
-    println!();
-    println!("{} no tasks are started", "Error".red().bold());
-    println!();
+fn term_task_body(task: &Task) {
+    let color = if task.is_active() { Fg::Green } else { Fg::Red };
+    termarrow_fg(
+        color,
+        format_args!(
+            "{} {}",
+            DeltaFmt::option(task.delta()),
+            format_args!(
+                "({} - {})",
+                TimeFmt::new(task.start()),
+                TimeFmt::option(task.end())
+            )
+            .fg_bright_black()
+        ),
+    );
 }

@@ -4,12 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-chrono = "0.4.37"
+chrono = { version = "0.4.37", features = ["serde"] }
 clap = "4.5.4"
-colored = "2.1.0"
 expanduser = "1.2.2"
 eyre = "0.6.12"
 rusqlite = { version = "0.31.0", features = ["bundled", "chrono"] }
 serde = { version = "1.0.199", features = ["derive"] }
 serde_json = "1.0.116"
-term-painter = "0.4.0"
+termfmt = { git = "https://github.com/lukas412/termfmt" }

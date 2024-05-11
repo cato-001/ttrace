@@ -9,6 +9,7 @@ mod task {
 
     use chrono::{Local, NaiveTime, TimeDelta};
     use rusqlite::Row;
+    use serde::Serialize;
 
     use crate::day::{Day, DayReference};
 
@@ -31,9 +32,10 @@ mod task {
         task.day = DayReference::Value(day);
     }
 
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, Serialize)]
     pub struct Task {
         id: u64,
+        #[serde(skip)]
         day: DayReference,
         start: NaiveTime,
         end: Option<NaiveTime>,
@@ -86,10 +88,13 @@ mod task {
 }
 
 mod day_with_tasks {
+    use serde::Serialize;
+
     use crate::day::Day;
 
     use super::{task_group::TaskGroup, Task};
 
+    #[derive(Serialize)]
     pub struct DayWithTasks {
         day: Day,
         tasks: Vec<Task>,

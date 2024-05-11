@@ -8,6 +8,7 @@ mod day {
 
     use chrono::{Local, NaiveDate, NaiveTime};
     use rusqlite::Row;
+    use serde::Serialize;
 
     pub fn day_from_row(row: &Row) -> rusqlite::Result<Day> {
         let id = row.get("id")?;
@@ -15,7 +16,7 @@ mod day {
         Ok(Day { id, date })
     }
 
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, Serialize)]
     pub struct Day {
         id: u64,
         date: NaiveDate,
@@ -59,10 +60,11 @@ mod day_reference {
         types::{FromSql, ToSqlOutput, Value},
         ToSql,
     };
+    use serde::Serialize;
 
     use super::Day;
 
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, Serialize)]
     pub enum DayReference {
         Id(u64),
         Value(Day),
