@@ -91,12 +91,9 @@ mod task {
 }
 
 mod day_with_tasks {
-<<<<<<< HEAD
-    use serde::Serialize;
-=======
     use chrono::TimeDelta;
     use itertools::Itertools;
->>>>>>> f7f0a3085550b82f87d29fc494c5e963ad906e62
+    use serde::Serialize;
 
     use crate::day::Day;
 
