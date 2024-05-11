@@ -31,6 +31,7 @@ impl TaskRepository {
     }
 
     pub fn start(&self, day: &Day, description: &str) -> eyre::Result<Task> {
+        let desciption = description.trim();
         if self.current(day).is_ok() {
             self.stop(day)
                 .with_context(|| "could not end the current task before starting a new one.")?;
