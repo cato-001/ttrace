@@ -93,16 +93,22 @@ fn main() -> eyre::Result<()> {
             term.day_with_tasks(tasks_for_day);
         }
         ("yesterday", _) => {
-            let Ok(yesterday) = day_repository.yesterday() else {
-                term.error("could not find or create day!");
+            let Ok(yesterday) = day_repository.yesterday().map_err(|error| {
+                term.error(format_args!("could not find or create day: {}", error));
                 term.end();
+            }) else {
                 return Ok(());
             };
             let tasks_for_day = task_repository.day_with_tasks(yesterday)?;
             term.day_with_tasks(tasks_for_day);
         }
         ("week", _) => {
-            let week = day_repository.week_till_today()?;
+            let Ok(week) = day_repository.week_till_today().map_err(|error| {
+                term.error(format_args!("could not get week till today: {}", error));
+                term.end();
+            }) else {
+                return Ok(());
+            };
             let week = week
                 .into_iter()
                 .filter_map(|day| task_repository.day_with_tasks(day).ok());
