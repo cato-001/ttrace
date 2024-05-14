@@ -1,7 +1,10 @@
 [package]
-name = "ttrack"
+name = "ttrace"
 version = "0.1.0"
 edition = "2021"
+description = "trace the time for tasks for a given day."
+license = "MIT"
+
 
 [dependencies]
 chrono = { version = "0.4.37", features = ["serde"] }
@@ -12,4 +15,4 @@ itertools = "0.12.1"
 rusqlite = { version = "0.31.0", features = ["bundled", "chrono"] }
 serde = { version = "1.0.199", features = ["derive"] }
 serde_json = "1.0.116"
-termfmt = { git = "https://github.com/lukas412/termfmt" }
+termfmt = "0.2.1"
