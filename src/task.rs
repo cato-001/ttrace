@@ -8,7 +8,7 @@ pub use dto::{DayWithTasks, Task, TaskGroup};
 
 use crate::day::Day;
 
-use self::dto::{set_task_day, task_from_row};
+use self::dto::{set_task_day, set_task_description, task_from_row};
 
 mod dto;
 
@@ -66,6 +66,17 @@ impl TaskRepository {
         Ok(current.id())
     }
 
+    pub fn rename_current(&self, day: &Day, description: &str) -> eyre::Result<Task> {
+        let task = self.current(day)?;
+        self.rename_task(task, description)
+    }
+
+    pub fn rename_task(&self, mut task: Task, description: &str) -> eyre::Result<Task> {
+        set_task_description(&mut task, description);
+        self.save(&task);
+        Ok(task)
+    }
+
     pub fn current(&self, day: &Day) -> eyre::Result<Task> {
         let mut task = self.get(
             "SELECT id, day_id, start, end, description
@@ -119,5 +130,19 @@ impl TaskRepository {
             .collect::<Result<_, _>>()
             .wrap_err("cannot convert tasks from sql statement")
             .with_context(|| query.to_owned())
+    }
+
+    fn save(&self, task: &Task) -> eyre::Result<()> {
+        self.connection.execute(
+            "UPDATE tasks SET day_id=?1, start=?2, end=?3, description=?4 WHERE id=?5",
+            (
+                task.day_id(),
+                task.start(),
+                task.end(),
+                task.description(),
+                task.id(),
+            ),
+        )?;
+        Ok(())
     }
 }

@@ -1,6 +1,6 @@
 pub use {
     day_with_tasks::DayWithTasks,
-    task::{set_task_day, task_from_row, Task},
+    task::{set_task_day, set_task_description, task_from_row, Task},
     task_group::TaskGroup,
 };
 
@@ -33,6 +33,11 @@ mod task {
         task.day = DayReference::Value(day);
     }
 
+    pub fn set_task_description(task: &mut Task, description: &str) {
+        task.description.clear();
+        task.description.push_str(description);
+    }
+
     #[derive(Debug, Clone, Serialize)]
     pub struct Task {
         id: u64,
@@ -46,6 +51,13 @@ mod task {
     impl Task {
         pub fn id(&self) -> u64 {
             self.id
+        }
+
+        pub fn day_id(&self) -> u64 {
+            match &self.day {
+                DayReference::Id(id) => *id,
+                DayReference::Value(day) => day.id(),
+            }
         }
 
         pub fn description(&self) -> &str {

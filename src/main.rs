@@ -35,6 +35,13 @@ fn main() -> eyre::Result<()> {
                 ])
                 .about("start a new task, if another task is running it will get stopped"),
             Command::new("stop").about("stop the currently running task"),
+            Command::new("rename")
+                .arg(
+                    Arg::new("description")
+                        .num_args(1)
+                        .help("the new name of the currently running task"),
+                )
+                .about("rename the current task."),
             Command::new("edit")
                 .args([
                     Arg::new("name")
@@ -81,6 +88,12 @@ fn main() -> eyre::Result<()> {
                 return Ok(());
             };
             let task = task_repository.task(task_id)?;
+            term.task(task);
+        }
+        ("rename", command) => {
+            let description: &String = command.get_one("description").unwrap();
+            let today = day_repository.today()?;
+            let task = task_repository.rename_current(&today, description)?;
             term.task(task);
         }
         ("today", _) => {
