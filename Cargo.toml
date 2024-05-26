@@ -1,6 +1,6 @@
 [package]
 name = "ttrace"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 description = "trace the time for tasks for a given day."
 license = "MIT"
