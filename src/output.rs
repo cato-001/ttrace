@@ -17,7 +17,7 @@ use crate::{
 
 pub enum OutputData {
     Error(String),
-    Task(Task),
+    Task(Task<Day>),
     DayWithTask(DayWithTasks),
     End,
 }
@@ -25,7 +25,7 @@ pub enum OutputData {
 #[derive(Default, Serialize)]
 pub struct DataBundle {
     #[serde(rename = "output", skip_serializing_if = "Vec::is_empty")]
-    tasks: Vec<Task>,
+    tasks: Vec<Task<Day>>,
     #[serde(rename = "output", skip_serializing_if = "Vec::is_empty")]
     day_with_tasks: Vec<DayWithTasks>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -37,7 +37,7 @@ pub struct DataBundle {
 pub trait OutputFmt {
     fn error(&mut self, value: impl Display);
     fn day_with_tasks(&mut self, value: DayWithTasks);
-    fn task(&mut self, task: Task);
+    fn task(&mut self, task: Task<Day>);
     fn end(&mut self);
 }
 
@@ -50,7 +50,7 @@ impl OutputFmt for TermFmt<OutputData, DataBundle> {
         self.output(OutputData::DayWithTask(value));
     }
 
-    fn task(&mut self, value: Task) {
+    fn task(&mut self, value: Task<Day>) {
         self.output(OutputData::Task(value));
     }
 
@@ -116,13 +116,13 @@ impl BundleFmt for DataBundle {
     }
 }
 
-fn term_task_body(task: &Task) {
+fn term_task_body(task: &Task<Day>) {
     let color = if task.is_active() { Fg::Green } else { Fg::Red };
     termarrow_fg(
         color,
         format_args!(
             "{} {}",
-            DeltaFmt::option(task.delta()),
+            DeltaFmt::new(task.delta()),
             format_args!(
                 "({} - {})",
                 TimeFmt::new(task.start()),

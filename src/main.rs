@@ -1,6 +1,8 @@
 #![allow(unused)]
 
-use chrono::{Days, Local};
+use std::str::FromStr;
+
+use chrono::{Days, Local, TimeDelta, Timelike};
 use clap::{Arg, ArgAction, Command};
 use config::Config;
 use database::open_database_connection;
@@ -10,13 +12,14 @@ use termfmt::{TermFmtExt, TermFmtsExt};
 use crate::task::TaskRepository;
 
 use self::output::{DataBundle, OutputFmt};
+use self::time::TimeOrDelta;
 
-mod commands;
 mod config;
 mod database;
 mod day;
 mod output;
 mod task;
+mod time;
 
 fn main() -> eyre::Result<()> {
     let cli = Command::new("ttrack")
@@ -40,6 +43,13 @@ fn main() -> eyre::Result<()> {
                     Arg::new("description")
                         .num_args(1)
                         .help("the new name of the currently running task"),
+                )
+                .about("rename the current task."),
+            Command::new("restart")
+                .arg(
+                    Arg::new("time")
+                        .num_args(1)
+                        .help("the new start time of the currently running task"),
                 )
                 .about("rename the current task."),
             Command::new("edit")
@@ -77,23 +87,33 @@ fn main() -> eyre::Result<()> {
         ("start", command) => {
             let description: &String = command.get_one("description").unwrap();
             let today = day_repository.today()?;
-            let task = task_repository.start(&today, description.as_str())?;
+            let task = task_repository.start(today, description.as_str())?;
             term.task(task);
         }
         ("stop", _) => {
             let today = day_repository.today()?;
-            let Ok(task_id) = task_repository.stop(&today) else {
+            let Ok(task) = task_repository.stop(today) else {
                 term.error("no task is started yet!");
                 term.end();
                 return Ok(());
             };
-            let task = task_repository.task(task_id)?;
             term.task(task);
         }
         ("rename", command) => {
             let description: &String = command.get_one("description").unwrap();
             let today = day_repository.today()?;
-            let task = task_repository.rename_current(&today, description)?;
+            let task = task_repository.rename_current(today, description)?;
+            term.task(task);
+        }
+        ("restart", command) => {
+            let time: &String = command.get_one("time").unwrap();
+            let time_or_delta = TimeOrDelta::from_str(&time)?;
+            let day = day_repository.today()?;
+            let task = task_repository.current(day)?;
+            let task = match time_or_delta {
+                TimeOrDelta::Time(time) => task_repository.set_start(task, time),
+                TimeOrDelta::Delta(delta) => task_repository.shift_start(task, delta),
+            }?;
             term.task(task);
         }
         ("today", _) => {

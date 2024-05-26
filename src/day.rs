@@ -2,11 +2,9 @@ use std::rc::Rc;
 
 use chrono::{Datelike, Days, Local, NaiveDate, Weekday};
 use eyre::{Context, ContextCompat};
-use rusqlite::{Connection, Params};
+use rusqlite::{Connection, Params, Row};
 
-pub use dto::{Day, DayReference};
-
-use self::dto::day_from_row;
+pub use dto::{Day, DayRef, DayReference};
 
 mod dto;
 
@@ -116,4 +114,10 @@ impl DayRepository {
             .wrap_err("cannot convert tasks from sql statement")
             .with_context(|| query.to_owned())
     }
+}
+
+pub fn day_from_row(row: &Row) -> rusqlite::Result<Day> {
+    let id = row.get("id")?;
+    let date = row.get("date")?;
+    Ok(Day::new(id, date))
 }
