@@ -4,7 +4,7 @@ version = "0.1.1"
 edition = "2021"
 description = "trace the time for tasks for a given day."
 license = "MIT"
-
+repository = "https://github.com/lukas412/ttrace"
 
 [dependencies]
 chrono = { version = "0.4.37", features = ["serde"] }
