@@ -5,6 +5,7 @@ use eyre::{Context, ContextCompat};
 use rusqlite::{Connection, Params, Row};
 
 pub use dto::{Day, DayRef, DayReference};
+use someutil::NaiveWeekExt;
 
 mod dto;
 
@@ -26,7 +27,7 @@ impl DayRepository {
 
     pub fn today(&self) -> eyre::Result<Day> {
         let date = Local::now().date_naive();
-        self.from_date(&date)
+        self.from_date(date)
     }
 
     pub fn yesterday(&self) -> eyre::Result<Day> {
@@ -34,27 +35,29 @@ impl DayRepository {
             .date_naive()
             .checked_sub_days(Days::new(1))
             .wrap_err("could not get yesterdays date!")?;
-        self.from_date(&date)
+        self.from_date(date)
+    }
+
+    pub fn complete_week(&self, mut date: NaiveDate) -> eyre::Result<Vec<Day>> {
+        const ONE_DAY: Days = Days::new(1);
+        date.week(Weekday::Mon)
+            .iter_days()
+            .map(|date| self.from_date(date))
+            .collect()
     }
 
     pub fn week_till_today(&self) -> eyre::Result<Vec<Day>> {
-        const ONE_DAY: Days = Days::new(1);
         let mut date = Local::now().date_naive();
-        let mut week = Vec::new();
+        self.week_till_date(date)
+    }
 
-        loop {
-            week.push(self.from_date(&date)?);
-
-            if matches!(date.weekday(), Weekday::Mon) {
-                break;
-            }
-            let Some(next) = date.checked_sub_days(ONE_DAY) else {
-                break;
-            };
-            date = next
-        }
-
-        Ok(week)
+    pub fn week_till_date(&self, mut date: NaiveDate) -> eyre::Result<Vec<Day>> {
+        const ONE_DAY: Days = Days::new(1);
+        date.week(Weekday::Mon)
+            .iter_days()
+            .filter(|day| *day <= date)
+            .map(|date| self.from_date(date))
+            .collect()
     }
 
     pub fn list_passed_days(&self, count: usize) -> eyre::Result<Vec<Day>> {
@@ -64,7 +67,7 @@ impl DayRepository {
         )
     }
 
-    pub fn from_date(&self, date: &NaiveDate) -> eyre::Result<Day> {
+    pub fn from_date(&self, date: NaiveDate) -> eyre::Result<Day> {
         if let Ok(day) = self.from_date_or_none(&date) {
             return Ok(day);
         }

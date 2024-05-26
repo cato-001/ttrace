@@ -7,6 +7,7 @@ use clap::{Arg, ArgAction, Command};
 use config::Config;
 use database::open_database_connection;
 use day::DayRepository;
+use eyre::{eyre, ContextCompat};
 use termfmt::{TermFmtExt, TermFmtsExt};
 
 use crate::task::TaskRepository;
@@ -49,6 +50,8 @@ fn main() -> eyre::Result<()> {
                 .arg(
                     Arg::new("time")
                         .num_args(1)
+                        .required(true)
+                        .allow_negative_numbers(true)
                         .help("the new start time of the currently running task"),
                 )
                 .about("rename the current task."),
@@ -68,7 +71,24 @@ fn main() -> eyre::Result<()> {
             Command::new("get").about("get the currently running task"),
             Command::new("today").about("list the tasks of today"),
             Command::new("yesterday").about("list the task of yesterday"),
-            Command::new("week").about("list the task of this week"),
+            Command::new("day")
+                .arg(
+                    Arg::new("days")
+                        .num_args(1)
+                        .allow_negative_numbers(true)
+                        .default_value("0")
+                        .help("number of days to go back"),
+                )
+                .about("list the task of the day"),
+            Command::new("week")
+                .arg(
+                    Arg::new("weeks")
+                        .num_args(1)
+                        .allow_negative_numbers(true)
+                        .default_value("0")
+                        .help("number of weeks to go back"),
+                )
+                .about("list the task of the week"),
         ])
         .about("track the time you spend on projects or other tasks")
         .subcommand_required(true)
@@ -135,12 +155,29 @@ fn main() -> eyre::Result<()> {
             let tasks_for_day = task_repository.day_with_tasks(yesterday)?;
             term.day_with_tasks(tasks_for_day);
         }
-        ("week", _) => {
-            let Ok(week) = day_repository.week_till_today().map_err(|error| {
-                term.error(format_args!("could not get week till today: {}", error));
-                term.end();
-            }) else {
-                return Ok(());
+        ("day", command) => {
+            let days: &String = command.get_one("days").unwrap();
+            let days = i32::from_str(days)?;
+            let date = Local::now()
+                .date_naive()
+                .checked_sub_days(Days::new(days.abs() as u64))
+                .wrap_err("cannot sub days")?;
+            let day = day_repository.from_date(date)?;
+            let day_with_tasks = task_repository.day_with_tasks(day)?;
+            term.day_with_tasks(day_with_tasks);
+        }
+        ("week", command) => {
+            let weeks: &String = command.get_one("weeks").unwrap();
+            let weeks = i32::from_str(weeks)?;
+            let week = if weeks == 0 {
+                day_repository.week_till_today()?
+            } else {
+                let weeks = weeks.abs() as u64;
+                let today = Local::now().date_naive();
+                let date = today
+                    .checked_sub_days(Days::new(weeks * 7))
+                    .unwrap_or(today);
+                day_repository.complete_week(date)?
             };
             let week = week
                 .into_iter()
@@ -159,9 +196,7 @@ fn main() -> eyre::Result<()> {
                 term.task(task);
             }
         }
-        (command, _) => {
-            eprintln!("ERROR \"the command {} is not implemented.\"", command)
-        }
+        (command, _) => term.error(eyre!("the command {} is not implemented.", command)),
     }
 
     term.flush();
