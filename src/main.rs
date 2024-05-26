@@ -1,5 +1,6 @@
 #![allow(unused)]
 
+use std::process::exit;
 use std::str::FromStr;
 
 use chrono::{Days, Local, TimeDelta, Timelike};
@@ -89,6 +90,7 @@ fn main() -> eyre::Result<()> {
                         .help("number of weeks to go back"),
                 )
                 .about("list the task of the week"),
+            Command::new("is_active").about("exit successfully if a task is currently running"),
         ])
         .about("track the time you spend on projects or other tasks")
         .subcommand_required(true)
@@ -195,6 +197,18 @@ fn main() -> eyre::Result<()> {
             if let Ok(task) = task_repository.current(today) {
                 term.task(task);
             }
+        }
+        ("is_active", _) => {
+            let Ok(today) = day_repository.today() else {
+                term.error("could not get todays day!");
+                term.end();
+                exit(1);
+            };
+            let Ok(task) = task_repository.current(today) else {
+                term.error("no task is currently active");
+                exit(1);
+            };
+            term.task(task);
         }
         (command, _) => term.error(eyre!("the command {} is not implemented.", command)),
     }
