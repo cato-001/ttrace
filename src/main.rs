@@ -149,6 +149,16 @@ fn main() -> eyre::Result<()> {
                 term.day_with_tasks(day_with_tasks);
             }
         }
+        ("get", _) => {
+            let Ok(today) = day_repository.today() else {
+                term.error("could not get todays day!");
+                term.end();
+                return Ok(());
+            };
+            if let Ok(task) = task_repository.current(today) {
+                term.task(task);
+            }
+        }
         (command, _) => {
             eprintln!("ERROR \"the command {} is not implemented.\"", command)
         }
