@@ -49,8 +49,9 @@ where
         day: DayRefImpl,
         start: NaiveTime,
         end: Option<NaiveTime>,
-        description: String,
+        mut description: String,
     ) -> Self {
+        description.make_ascii_lowercase();
         Self {
             id,
             day,

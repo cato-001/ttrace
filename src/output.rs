@@ -82,12 +82,26 @@ impl DataFmt for OutputData {
                 term_task_body(&value);
             }
             Self::DayWithTask(value) => {
-                termprefix1("Day", DateFmt::new(value.day().date()));
+                termprefix1(
+                    "Day",
+                    format_args!(
+                        "{} {}",
+                        DateFmt::new(value.day().date()),
+                        format_args!("({})", DeltaFmt::new(value.delta())).fg_bright_black()
+                    ),
+                );
                 if value.is_empty() {
                     termarrow("no tasks recorded!".fg_bright_black());
                 }
                 for group in value.task_groups() {
-                    termprefix2("Task", group.description());
+                    termprefix2(
+                        "Task",
+                        format_args!(
+                            "{} {}",
+                            group.description(),
+                            format_args!("({})", DeltaFmt::new(group.delta())).fg_bright_black()
+                        ),
+                    );
                     for task in group.tasks() {
                         term_task_body(task);
                     }

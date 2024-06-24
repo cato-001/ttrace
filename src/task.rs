@@ -222,6 +222,6 @@ pub fn task_from_row(row: &Row) -> rusqlite::Result<Task<u64>> {
     let start = row.get("start")?;
     let end = row.get("end")?;
     let description: String = row.get("description")?;
-    let description = description.trim().to_owned();
-    Ok(Task::new(id, day, start, end, description))
+    let description = description.trim();
+    Ok(Task::new(id, day, start, end, description.to_owned()))
 }

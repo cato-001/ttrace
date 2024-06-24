@@ -12,11 +12,11 @@ impl FromStr for TimeOrDelta {
     type Err = eyre::Error;
 
     fn from_str(s: &str) -> eyre::Result<Self> {
-        if s.len() == 4 && is_digit(s) {
-            let hours = u32::from_str(&s[..2])?;
-            let minutes = u32::from_str(&s[2..])?;
-            let time = NaiveTime::from_hms_opt(hours, minutes, 0);
-            let time = time.wrap_err("time values are not right")?;
+        if is_digit(s) && matches!(s.len(), 3 | 4) {
+            let split_index = s.len() - 2;
+            let (hours, minutes) = s.split_at(split_index);
+            let time = NaiveTime::from_hms_opt(u32::from_str(hours)?, u32::from_str(minutes)?, 0)
+                .wrap_err("time values are not right")?;
             return Ok(Self::Time(time));
         };
         if s[..1] == *"+" {
