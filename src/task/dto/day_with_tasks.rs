@@ -6,7 +6,7 @@ use crate::day::Day;
 
 use super::{task_group::TaskGroup, Task};
 
-#[derive(Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct DayWithTasks {
     day: Day,
     tasks: Vec<Task<Day>>,

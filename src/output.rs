@@ -40,7 +40,9 @@ pub trait OutputFmt {
 impl OutputFmt for TermFmt<DataBundle> {
     fn error(&mut self, value: impl Display) {
         self.bundle(|bundle| bundle.error.push(format!("{}", value)));
-        self.plain(value);
+        if self.is_plain() {
+            println!("{}", value);
+        }
         if self.is_interactive() {
             termerr(value);
         }
