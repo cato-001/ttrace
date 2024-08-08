@@ -1,3 +1,4 @@
+use core::task;
 use std::{
     fmt::Display,
     io::{stdout, IsTerminal},
@@ -6,24 +7,19 @@ use std::{
 use serde::Serialize;
 use termfmt::{
     chrono::{DateFmt, DeltaFmt, TimeFmt},
-    termarrow, termarrow_fg, termerr, termh1, termh2, termprefix1, termprefix2, BundleFmt, DataFmt,
-    Fg, TermFmt, TermStyle,
+    termarrow, termarrow_fg, termerr, termh1, termh2, termprefix1, termprefix2, BundleFmt, Fg,
+    TermFmt, TermStyle,
 };
 
 use crate::{
+    config::Config,
     day::Day,
     task::{DayWithTasks, Task, TaskGroup},
 };
 
-pub enum OutputData {
-    Error(String),
-    Task(Task<Day>),
-    DayWithTask(DayWithTasks),
-    End,
-}
-
 #[derive(Default, Serialize)]
 pub struct DataBundle {
+    config: Config,
     #[serde(rename = "output", skip_serializing_if = "Vec::is_empty")]
     tasks: Vec<Task<Day>>,
     #[serde(rename = "output", skip_serializing_if = "Vec::is_empty")]
@@ -36,91 +32,79 @@ pub struct DataBundle {
 
 pub trait OutputFmt {
     fn error(&mut self, value: impl Display);
-    fn day_with_tasks(&mut self, value: DayWithTasks);
-    fn task(&mut self, task: Task<Day>);
+    fn day_with_tasks(&mut self, value: &DayWithTasks);
+    fn task(&mut self, task: &Task<Day>);
     fn end(&mut self);
 }
 
-impl OutputFmt for TermFmt<OutputData, DataBundle> {
+impl OutputFmt for TermFmt<DataBundle> {
     fn error(&mut self, value: impl Display) {
-        self.output(OutputData::Error(format!("{}", value)));
-    }
-
-    fn day_with_tasks(&mut self, value: DayWithTasks) {
-        self.output(OutputData::DayWithTask(value));
-    }
-
-    fn task(&mut self, value: Task<Day>) {
-        self.output(OutputData::Task(value));
-    }
-
-    fn end(&mut self) {
-        self.output(OutputData::End);
-    }
-}
-
-impl DataFmt for OutputData {
-    fn plain(self) {
-        match self {
-            Self::Error(value) => eprintln!("{}", value),
-            Self::Task(value) => println!("{}", value),
-            Self::DayWithTask(value) => {
-                println!("{}", value.day());
-                for task in value.tasks() {
-                    println!("{}", task);
-                }
-            }
-            Self::End => {}
+        self.bundle(|bundle| bundle.error.push(format!("{}", value)));
+        self.plain(value);
+        if self.is_interactive() {
+            termerr(value);
         }
     }
 
-    fn interactive(self) {
-        match self {
-            Self::Error(value) => termerr(value),
-            Self::Task(value) => {
-                termprefix2("Task", value.description());
-                term_task_body(&value);
+    fn day_with_tasks(&mut self, value: &DayWithTasks) {
+        self.bundle(|bundle| bundle.day_with_tasks.push(value.clone()));
+        if self.is_plain() {
+            println!("{}", value.day());
+            for task in value.tasks() {
+                println!("{}", task);
             }
-            Self::DayWithTask(value) => {
-                termprefix1(
-                    "Day",
+        }
+        if self.is_interactive() {
+            termprefix1(
+                "Day",
+                format_args!(
+                    "{} {}",
+                    DateFmt::new(value.day().date()),
+                    format_args!("({})", DeltaFmt::new(value.delta())).fg_bright_black()
+                ),
+            );
+            if value.is_empty() {
+                termarrow("no tasks recorded!".fg_bright_black());
+            }
+            for group in value.task_groups() {
+                termprefix2(
+                    "Task",
                     format_args!(
                         "{} {}",
-                        DateFmt::new(value.day().date()),
-                        format_args!("({})", DeltaFmt::new(value.delta())).fg_bright_black()
+                        group.description(),
+                        format_args!("({})", DeltaFmt::new(group.delta())).fg_bright_black()
                     ),
                 );
-                if value.is_empty() {
-                    termarrow("no tasks recorded!".fg_bright_black());
-                }
-                for group in value.task_groups() {
-                    termprefix2(
-                        "Task",
-                        format_args!(
-                            "{} {}",
-                            group.description(),
-                            format_args!("({})", DeltaFmt::new(group.delta())).fg_bright_black()
-                        ),
-                    );
-                    for task in group.tasks() {
-                        term_task_body(task);
-                    }
+                for task in group.tasks() {
+                    term_task_body(task);
                 }
             }
-            Self::End => println!(),
+        }
+    }
+
+    fn task(&mut self, value: &Task<Day>) {
+        self.bundle(|bundle| bundle.tasks.push(value.clone()));
+        self.plain(value);
+        if self.is_interactive() {
+            termprefix2("Task", value.description());
+            term_task_body(&value);
+        }
+    }
+
+    fn end(&mut self) {
+        if self.is_interactive() {
+            println!();
         }
     }
 }
 
 impl BundleFmt for DataBundle {
-    type Data = OutputData;
+    type Config = Config;
 
-    fn push(&mut self, value: Self::Data) {
-        match value {
-            OutputData::Error(value) => self.error.push(value),
-            OutputData::Task(value) => self.tasks.push(value),
-            OutputData::DayWithTask(value) => self.day_with_tasks.push(value),
-            OutputData::End => {}
+    fn new(config: Self::Config) -> Self {
+        Self {
+            config,
+            ..Default::default()
         }
     }
 

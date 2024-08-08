@@ -100,7 +100,7 @@ fn main() -> eyre::Result<()> {
     let config = Config::load()?;
     let connection = open_database_connection(&config)?;
 
-    let mut term = cli.termfmt(DataBundle::default());
+    let mut term = cli.termfmt(&config);
 
     let day_repository = DayRepository::new(connection.clone())?;
     let task_repository = TaskRepository::new(connection)?;
@@ -110,7 +110,7 @@ fn main() -> eyre::Result<()> {
             let description: &String = command.get_one("description").unwrap();
             let today = day_repository.today()?;
             let task = task_repository.start(today, description.as_str())?;
-            term.task(task);
+            term.task(&task);
         }
         ("stop", _) => {
             let today = day_repository.today()?;
@@ -119,13 +119,13 @@ fn main() -> eyre::Result<()> {
                 term.end();
                 return Ok(());
             };
-            term.task(task);
+            term.task(&task);
         }
         ("rename", command) => {
             let description: &String = command.get_one("description").unwrap();
             let today = day_repository.today()?;
             let task = task_repository.rename_current(today, description)?;
-            term.task(task);
+            term.task(&task);
         }
         ("restart", command) => {
             let time: &String = command.get_one("time").unwrap();
@@ -136,7 +136,7 @@ fn main() -> eyre::Result<()> {
                 TimeOrDelta::Time(time) => task_repository.set_start(task, time),
                 TimeOrDelta::Delta(delta) => task_repository.shift_start(task, delta),
             }?;
-            term.task(task);
+            term.task(&task);
         }
         ("today", _) => {
             let Ok(today) = day_repository.today() else {
@@ -145,7 +145,7 @@ fn main() -> eyre::Result<()> {
                 return Ok(());
             };
             let tasks_for_day = task_repository.day_with_tasks(today)?;
-            term.day_with_tasks(tasks_for_day);
+            term.day_with_tasks(&tasks_for_day);
         }
         ("yesterday", _) => {
             let Ok(yesterday) = day_repository.yesterday().map_err(|error| {
@@ -155,7 +155,7 @@ fn main() -> eyre::Result<()> {
                 return Ok(());
             };
             let tasks_for_day = task_repository.day_with_tasks(yesterday)?;
-            term.day_with_tasks(tasks_for_day);
+            term.day_with_tasks(&tasks_for_day);
         }
         ("day", command) => {
             let days: &String = command.get_one("days").unwrap();
@@ -166,7 +166,7 @@ fn main() -> eyre::Result<()> {
                 .wrap_err("cannot sub days")?;
             let day = day_repository.from_date(date)?;
             let day_with_tasks = task_repository.day_with_tasks(day)?;
-            term.day_with_tasks(day_with_tasks);
+            term.day_with_tasks(&day_with_tasks);
         }
         ("week", command) => {
             let weeks: &String = command.get_one("weeks").unwrap();
@@ -185,7 +185,7 @@ fn main() -> eyre::Result<()> {
                 .into_iter()
                 .filter_map(|day| task_repository.day_with_tasks(day).ok());
             for day_with_tasks in week {
-                term.day_with_tasks(day_with_tasks);
+                term.day_with_tasks(&day_with_tasks);
             }
         }
         ("get", _) => {
@@ -195,7 +195,7 @@ fn main() -> eyre::Result<()> {
                 return Ok(());
             };
             if let Ok(task) = task_repository.current(today) {
-                term.task(task);
+                term.task(&task);
             }
         }
         ("is_active", _) => {
@@ -208,7 +208,7 @@ fn main() -> eyre::Result<()> {
                 term.error("no task is currently active");
                 exit(1);
             };
-            term.task(task);
+            term.task(&task);
         }
         (command, _) => term.error(eyre!("the command {} is not implemented.", command)),
     }

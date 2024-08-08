@@ -2,9 +2,9 @@ use std::{fs, path::PathBuf};
 
 use expanduser::expanduser;
 use eyre::Context;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     path: PathBuf,
 }
