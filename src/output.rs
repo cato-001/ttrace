@@ -6,7 +6,7 @@ use std::{
 
 use serde::Serialize;
 use termfmt::{
-    chrono::{DateFmt, DeltaFmt, TimeFmt},
+    chrono::{DateFmt, DeltaFmt, DeltaHourMinuteFmt, TimeFmt},
     termarrow, termarrow_fg, termerr, termh1, termh2, termprefix1, termprefix2, BundleFmt, Fg,
     TermFmt, TermStyle,
 };
@@ -32,6 +32,7 @@ pub struct DataBundle {
 
 pub trait OutputFmt {
     fn error(&mut self, value: impl Display);
+    fn day_with_tasks_txt(&mut self, value: &DayWithTasks);
     fn day_with_tasks(&mut self, value: &DayWithTasks);
     fn task(&mut self, task: &Task<Day>);
     fn end(&mut self);
@@ -45,6 +46,21 @@ impl OutputFmt for TermFmt<DataBundle> {
         }
         if self.is_interactive() {
             termerr(value);
+        }
+    }
+
+    fn day_with_tasks_txt(&mut self, value: &DayWithTasks) {
+        self.bundle(|bundle| bundle.day_with_tasks.push(value.clone()));
+        if self.is_plain() || self.is_interactive() {
+            for task in value.tasks() {
+                println!(
+                    "{} {}",
+                    TimeFmt::new(task.start()),
+                    DeltaHourMinuteFmt::new(task.delta())
+                );
+                println!("{}", task.description());
+                println!()
+            }
         }
     }
 

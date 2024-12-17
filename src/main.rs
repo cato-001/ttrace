@@ -3,7 +3,7 @@
 use std::process::exit;
 use std::str::FromStr;
 
-use chrono::{Days, Local, TimeDelta, Timelike};
+use chrono::{Days, Local, NaiveDate, TimeDelta, Timelike};
 use clap::{Arg, ArgAction, Command};
 use config::Config;
 use database::open_database_connection;
@@ -81,6 +81,13 @@ fn main() -> eyre::Result<()> {
                         .help("number of days to go back"),
                 )
                 .about("list the task of the day"),
+            Command::new("date")
+                .arg(
+                    Arg::new("date")
+                        .num_args(1)
+                        .help("number of days to go back"),
+                )
+                .about("list the task of on the date"),
             Command::new("week")
                 .arg(
                     Arg::new("weeks")
@@ -156,6 +163,13 @@ fn main() -> eyre::Result<()> {
             };
             let tasks_for_day = task_repository.day_with_tasks(yesterday)?;
             term.day_with_tasks(&tasks_for_day);
+        }
+        ("date", command) => {
+            let date: &String = command.get_one("date").unwrap();
+            let date = NaiveDate::parse_from_str(date, "%Y.%m.%d")?;
+            let day = day_repository.from_date(date)?;
+            let day_with_tasks = task_repository.day_with_tasks(day)?;
+            term.day_with_tasks_txt(&day_with_tasks);
         }
         ("day", command) => {
             let days: &String = command.get_one("days").unwrap();
