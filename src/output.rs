@@ -6,7 +6,7 @@ use std::{
 
 use serde::Serialize;
 use termfmt::{
-    chrono::{DateFmt, DeltaFmt, DeltaHourMinuteFmt, TimeFmt},
+    chrono::{DateFmt, DeltaFmt, DeltaHourMinuteFmt, TimeEditFmt, TimeFmt},
     termarrow, termarrow_fg, termerr, termh1, termh2, termprefix1, termprefix2, BundleFmt, Fg,
     TermFmt, TermStyle,
 };
@@ -55,7 +55,7 @@ impl OutputFmt for TermFmt<DataBundle> {
             for task in value.tasks() {
                 println!(
                     "{} {}",
-                    TimeFmt::new(task.start()),
+                    TimeEditFmt::new(task.start()),
                     DeltaHourMinuteFmt::new(task.delta())
                 );
                 println!("{}", task.description());
